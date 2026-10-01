@@ -1,50 +1,50 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件为 Claude Code(claude.ai/code)在本仓库中工作时提供指导说明。
 
-## What this repository is
+## 这个仓库是什么
 
-A Week 5 "A/B prompt structuring" exercise built around the same single-file coffee-delivery HTML game, modified two different ways:
+这是一个 Week 5「A/B 提示词结构化」练习,围绕同一个单文件咖啡配送 HTML 小游戏,用两种不同方式修改而成:
 
-- **`A/`** — the game modified through unstructured, free-form chat requests (no `CLAUDE.md`, no fixed prompt format).
-- **`B/`** — the same starting game modified through structured prompts (five-part `[현재 상황]/[목표]/[구체적인 변경]/[유지할 것]/[완료 기준]` format, plus a `[문제 재현]/[실제 결과]/[기대 결과]/[수정 범위]` format for bug reports), governed by **`B/CLAUDE.md`**, a separate, narrower system prompt that applies only inside `B/`.
+- **`A/`** — 用非结构化、随口聊天的方式提出修改请求(没有 `CLAUDE.md`,没有固定的提示词格式)。
+- **`B/`** — 同一个起点的游戏,用结构化的提示词修改而成(五段式格式 `[현재 상황]/[목표]/[구체적인 변경]/[유지할 것]/[완료 기준]`,报 bug 时用 `[문제 재현]/[실제 결과]/[기대 결과]/[수정 범위]` 格式),由 **`B/CLAUDE.md`** 这份单独、范围更窄的系统提示词来约束,该规则只在 `B/` 内部生效。
 
-`B` was developed as a continuation of `A`'s result, not independently. The two folders are intentionally parallel: same file layout (`index.html`, `tests/game.test.cjs`, `README.md`, `WORKSHEET.md`, `.gitignore`), diverging only in game code and in `WORKSHEET.md` contents.
+`B` 是接着 `A` 的结果继续开发的,不是独立开发的。两个文件夹的结构被刻意设计成平行对照:文件布局相同(`index.html`、`tests/game.test.cjs`、`README.md`、`WORKSHEET.md`、`.gitignore`),只有游戏代码本身和 `WORKSHEET.md` 的内容不同。
 
-Supporting files at the repo root document and present the comparison, and are not game code:
-- `WEEK5_LOG.md` — the filled-in worksheet (Korean) comparing A vs B, including a dedicated "A/B 프롬프트 비교" section with 8 side-by-side cases.
-- `B_PROMPTS.md` — every user-authored prompt sent in the B session, extracted in order from the local Claude Code transcript.
-- `presentation.html` + `PRESENTATION_SCRIPT.md` — a 7-slide, keyboard-navigable (arrow keys) presentation deck and matching Korean/Chinese speaker script, built only from facts already in `WEEK5_LOG.md`/`B_PROMPTS.md`.
-- `screenshots/` — PNGs referenced by `WORKSHEET.md`/`WEEK5_LOG.md` and `presentation.html` via relative paths; filenames prefixed `A_`/`B_` are paired same-angle comparison shots.
+仓库根目录下还有一些用来记录和展示这次对比的文件,它们不是游戏代码:
+- `WEEK5_LOG.md` — 填写完成的实习记录表(韩语),对比 A 和 B,其中有专门的「A/B 프롬프트 비교」部分,列出 8 组并排对照案例。
+- `B_PROMPTS.md` — B 会话中用户发送的每一条提示词,按时间顺序从本地 Claude Code 对话记录中提取而来。
+- `presentation.html` + `PRESENTATION_SCRIPT.md` — 一份 7 页、可用方向键翻页的发表用幻灯片,以及对应的韩语/中文讲稿,内容只依据 `WEEK5_LOG.md`/`B_PROMPTS.md` 里已有的事实撰写。
+- `screenshots/` — `WORKSHEET.md`/`WEEK5_LOG.md` 和 `presentation.html` 通过相对路径引用的截图;文件名带 `A_`/`B_` 前缀的是同角度并排对比图。
 
-This root folder itself is not a git repository. The published version of this work lives at `coffee-delivery-game-week3` on GitHub, where **B's `index.html`/`tests/` become the repo root**, `WORKSHEET.md` is replaced by the contents of `WEEK5_LOG.md`, and `A/index.html`, `B_PROMPTS.md`, `screenshots/` are added alongside — so B is the "canonical" version when working on the published repo structure, not A.
+这个根目录本身不是一个 git 仓库。这项作业发布的版本放在 GitHub 的 `coffee-delivery-game-week3` 仓库里,在那里 **B 的 `index.html`/`tests/` 成为仓库根目录的内容**,`WORKSHEET.md` 被替换成 `WEEK5_LOG.md` 的内容,另外还加入了 `A/index.html`、`B_PROMPTS.md`、`screenshots/`——所以在处理已发布的仓库结构时,B 才是「标准版本」,不是 A。
 
-## Commands
+## 常用命令
 
-Each of `A/` and `B/` is an independent, self-contained Node-testable project (no build step, no dependencies):
+`A/` 和 `B/` 各自都是独立的、可用 Node 测试的项目(无需构建、无依赖):
 
 ```sh
-# from inside A/ or B/
+# 在 A/ 或 B/ 目录下执行
 node --test tests/game.test.cjs
 ```
 
-The game itself needs no install, server, or API key — `index.html` runs by opening it directly in a browser. There is no lint/format tooling configured.
+游戏本身不需要安装、服务器或 API key——直接用浏览器打开 `index.html` 即可运行。没有配置 lint/格式化工具。
 
-## Architecture (applies to `A/index.html` and `B/index.html` identically in structure)
+## 架构说明(`A/index.html` 和 `B/index.html` 结构完全相同)
 
-Each `index.html` is a single file containing a small pseudo-3D town simulation entirely in inline `<style>`/`<script>` — no external libraries, no build. Key functions (same names in both A and B, logic differs):
+每个 `index.html` 都是单个文件,内联 `<style>`/`<script>` 实现了一个小型伪 3D 小镇模拟——没有外部库,没有构建流程。关键函数(A、B 中函数名相同,内部逻辑不同):
 
-- `SITES` — static data for the cafe and village buildings (positions, names).
-- `newGame()` — builds the initial game state object (position, facing, carried items, level, economy/upgrades, effects, delivery route).
-- `interact(s)` — handles picking up items at the cafe and delivering to neighbors.
-- `step(s, dt, input)` — per-frame movement, collision, and timers.
-- `draw(c, s, opts)` — renders the scene to canvas.
-- `mount(canvas, onUpdate)` — wires up keyboard/button input and the render loop.
+- `SITES` — 咖啡店和村庄建筑的静态数据(位置、名称)。
+- `newGame()` — 构建初始游戏状态对象(位置、朝向、携带物品、关卡、经济/升级、特效、送货路线)。
+- `interact(s)` — 处理在咖啡店取货、向邻居送货。
+- `step(s, dt, input)` — 每帧的移动、碰撞和计时处理。
+- `draw(c, s, opts)` — 把场景渲染到 canvas 上。
+- `mount(canvas, onUpdate)` — 连接键盘/按钮输入和渲染循环。
 
-Because `B/CLAUDE.md` instructs "수정하지 않은 요청과 결과 코드 구조는 바꾸지 않는다" (only touch what's requested, keep `index.html` as one file, no new libraries/CDNs/build steps), B's modifications are additive within this same structure rather than architectural rewrites — new features (delivery order routing, cafe-expansion visuals, collision, building decorations, menu/cart items) are layered into `SITES`/`newGame`/`interact`/`step`/`draw` rather than introduced as new files or modules.
+因为 `B/CLAUDE.md` 规定「只改请求的部分,index.html 保持单文件,不加新库/CDN/构建步骤」,所以 B 的修改都是在这套结构内做加法,而不是架构重写——新功能(送货顺序路线、咖啡店扩张外观、碰撞、建筑装饰、菜单/推车物品)都是叠加进 `SITES`/`newGame`/`interact`/`step`/`draw` 里,而不是新建文件或模块。
 
-## Working in `A/` vs `B/`
+## 在 `A/` 和 `B/` 中工作时注意
 
-- Treat `A/` as a frozen baseline — it represents the "what unstructured prompting produced" artifact and is referenced by `WEEK5_LOG.md`'s comparison section; don't update it to match B.
-- `B/CLAUDE.md` is the authoritative instruction set when editing inside `B/` (single-file constraint, no unrequested changes, report `[변경한 점 / 직접 확인한 것 / 미확인]` after every change, prefer `node --test tests/game.test.cjs` as completion evidence). Read it before modifying `B/index.html`.
-- Screenshots referenced from `WORKSHEET.md`/`WEEK5_LOG.md` use paths relative to the file's own location — keep `screenshots/` at the repo root (or inside `A/`/`B/` if a worksheet there references local screenshots) when adding new ones.
+- 把 `A/` 当作一个冻结的基线——它代表的是「非结构化提示词产出的结果」这个样本,被 `WEEK5_LOG.md` 的对比部分引用;不要为了对齐 B 而更新它。
+- 修改 `B/index.html` 时,`B/CLAUDE.md` 是权威的指令集(单文件约束、不做未要求的修改、每次修改后要汇报 `[변경한 점 / 직접 확인한 것 / 미확인]`、优先用 `node --test tests/game.test.cjs` 作为完成的证据)。修改前请先读它。
+- `WORKSHEET.md`/`WEEK5_LOG.md` 里引用的截图使用的是相对于该文件自身位置的路径——新增截图时,把它们放在仓库根目录的 `screenshots/` 下(如果 `A/`/`B/` 内部的 worksheet 引用的是本地截图,则放在对应目录下)。
