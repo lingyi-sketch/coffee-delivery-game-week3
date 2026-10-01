@@ -20,37 +20,9 @@ const SITES=[
  {id:'home3',lon:-2.65,lat:-.61,name:'언덕집',en:'Hill House',type:'hanok',color:'#ead9b6',roof:'#64746a',w:1.2,d:1,h:.75}
 ].map(s=>({...s,n:flat(s.lon,s.lat),door:flat(s.lon,s.lat-.24)}));
 const ORDERS=SITES.slice(1,5),CAFE=SITES[0],EXTRA=SITES.slice(5);
-const BASE_PRICE=8,KRW_PER_COIN=120,SAVE_KEY='daldongne-economy',NEAR_DIST=.205;
-const SITE_BY_ID={};SITES.forEach(x=>SITE_BY_ID[x.id]=x);
-const NEIGHBOR_LINES={
- books:['덕분에 하루가 술술 읽혀요','책장처럼 마음이 넘어가요','향긋한 문장 한 줄이네요'],
- store:['오 완전 신선하네요!','역시 최고예요 사장님!','완전 든든하네요!'],
- laundry:['고마워요! 향긋하네요~','완전 뽀송해졌어요!','매번 감동이에요~'],
- pavilion:['고맙소, 잘 마시리다','쉬어가기 딱 좋구려','고맙네, 몸이 녹네요'],
- home4:['정성이 느껴지네요','손끝이 다 따뜻하네요','잘 빚은 하루 같아요'],
- home5:['꽃향기처럼 향긋해요','마음까지 활짝 폈어요','고마워요, 향기롭네요'],
- home1:['매번 감사해요','늘 고맙습니다','따뜻하게 잘 받았어요'],
- home2:['고마워요, 잘 마실게요','부끄럽지만 고마워요','덕분에 힘이 나요'],
- home3:['멀리까지 고마워요','여기까지 와줘서 고마워요','언덕 오르느라 고생했어요']
-};
-function pickLine(s,site){
- const lines=NEIGHBOR_LINES[site.id]||['고마워요!'];
- if(lines.length===1)return lines[0];
- const last=s.lastLine[site.id];let idx=Math.floor(Math.random()*lines.length);
- while(lines.length>1&&idx===last)idx=Math.floor(Math.random()*lines.length);
- s.lastLine[site.id]=idx;return lines[idx];
-}
-const CONFETTI_COLORS=['#e8a33d','#e2685a','#7fae6a','#5f97b0','#c98fce','#f2d16b'];
-function makeConfetti(start){return {start,pieces:Array.from({length:36},()=>({x:Math.random()*W,delay:Math.random()*.3,speed:140+Math.random()*160,drift:(Math.random()-.5)*60,color:CONFETTI_COLORS[Math.floor(Math.random()*CONFETTI_COLORS.length)],rot:Math.random()*TAU,spin:(Math.random()-.5)*6}))}}
-function updateEffects(s){if(!s.effects)return;const t=s.effectClock||0;s.effects.bubbles=s.effects.bubbles.filter(b=>t-b.start<2.4);s.effects.floats=s.effects.floats.filter(f=>t-f.start<1.05);if(s.effects.confetti&&t-s.effects.confetti.start>2.6)s.effects.confetti=null}
-const ROUND_DOUBLE_LEVEL=5,BEAUTY_BONUS_LEVEL=8,MENU_UNLOCK_SCHEDULE=[5,8,11,14,17,20];
-function levelRounds(level){return (level||1)<ROUND_DOUBLE_LEVEL?1:2}
-function computeGoalForLevel(s,level){return activeOrders(s).length*levelRounds(level)}
-function computeGoal(s){return computeGoalForLevel(s,s.level||1)}
-function currentGoal(s){return s.status==='ready'?computeGoal(s):(s.levelGoal||computeGoal(s))}
-function menuUnlockLevel(s){return s.status==='won'?(s.level||1)+1:(s.level||1)}
-function menuSlots(s){const cur=menuUnlockLevel(s),earned=MENU_UNLOCK_SCHEDULE.filter(lv=>cur>=lv).length;return earned-s.economy.menu.length}
-function nextMenuHint(s){const cur=menuUnlockLevel(s),next=MENU_UNLOCK_SCHEDULE.find(lv=>cur<lv);return next===undefined?null:next-cur}
+const BASE_PRICE=8,KRW_PER_COIN=120,SAVE_KEY='daldongne-economy';
+const LEVEL_TARGETS=[5,8,13,21,34,55,89,88],MAX_LEVEL=LEVEL_TARGETS.length;
+function levelTarget(s){return LEVEL_TARGETS[Math.min(s.level||1,MAX_LEVEL)-1]}
 const UPGRADES={beauty:{base:30,mult:1.55,max:10},quality:{base:26,mult:1.55,max:10},houses:{base:60,mult:1.9,max:EXTRA.length}};
 const MENU=[
  {id:'cookie',kind:'snack',name:'쿠키',icon:'🍪',color:'#c98f4b'},
@@ -61,26 +33,13 @@ const MENU=[
  {id:'lemonade',kind:'drink',name:'레모네이드',icon:'🍋',color:'#efd55a'}
 ];
 const MENU_BONUS=.12;
-const COFFEE_ITEM={id:'coffee',kind:'coffee',icon:'☕',color:'#8a5a2e'};
-function itemInfo(id){return id&&id!=='coffee'?(MENU.find(m=>m.id===id)||COFFEE_ITEM):COFFEE_ITEM}
-function assignWants(s){const pool=['coffee',...s.economy.menu];s.economy.wants=s.economy.wants||{};for(const site of ORDERS.concat(EXTRA))s.economy.wants[site.id]=pool[Math.floor(Math.random()*pool.length)];saveEconomy(s.economy)}
-function wantOf(s,id){return (s.economy.wants&&s.economy.wants[id])||'coffee'}
-function resetWantsToCoffee(s){s.economy.wants={};for(const site of ORDERS.concat(EXTRA))s.economy.wants[site.id]='coffee';saveEconomy(s.economy)}
 function menuCost(s){return Math.round(90*Math.pow(1.6,s.economy.menu.length))}
-function buyMenu(s,id){const item=MENU.find(m=>m.id===id);if(!item||s.economy.menu.includes(id)||menuSlots(s)<1)return false;const cost=menuCost(s);if(s.economy.coins<cost)return false;s.economy.coins-=cost;s.economy.menu.push(id);saveEconomy(s.economy);sceneCache={};assignWants(s);return {ok:true}}
-function loadEconomy(){try{const raw=typeof localStorage!=='undefined'&&localStorage.getItem(SAVE_KEY);if(raw){const d=JSON.parse(raw);return {coins:d.coins||0,beauty:d.beauty||0,quality:d.quality||0,houses:d.houses||0,decorStyle:d.decorStyle||'trees',menu:Array.isArray(d.menu)?d.menu.filter(id=>MENU.some(m=>m.id===id)):[],level:d.level||1,wants:d.wants&&typeof d.wants==='object'?d.wants:{}}}}catch(e){}return {coins:0,beauty:0,quality:0,houses:0,decorStyle:'trees',menu:[],level:1,wants:{}}}
+function menuSlots(s){const cleared=s.status==='won'?(s.level||1):(s.level||1)-1;const earned=cleared>=MAX_LEVEL?1+Math.floor((cleared-MAX_LEVEL)/3):0;return earned-s.economy.menu.length}
+function buyMenu(s,id){const item=MENU.find(m=>m.id===id);if(!item||s.economy.menu.includes(id)||menuSlots(s)<1)return false;const cost=menuCost(s);if(s.economy.coins<cost)return false;s.economy.coins-=cost;s.economy.menu.push(id);saveEconomy(s.economy);sceneCache={};return {ok:true}}
+function loadEconomy(){try{const raw=typeof localStorage!=='undefined'&&localStorage.getItem(SAVE_KEY);if(raw){const d=JSON.parse(raw);return {coins:d.coins||0,beauty:d.beauty||0,quality:d.quality||0,houses:d.houses||0,decorStyle:d.decorStyle||'trees',menu:Array.isArray(d.menu)?d.menu.filter(id=>MENU.some(m=>m.id===id)):[],level:d.level||1}}}catch(e){}return {coins:0,beauty:0,quality:0,houses:0,decorStyle:'trees',menu:[],level:1}}
 function saveEconomy(e){try{typeof localStorage!=='undefined'&&localStorage.setItem(SAVE_KEY,JSON.stringify(e))}catch(err){}}
 function setDecorStyle(s,style){s.economy.decorStyle=style==='houses'?'houses':'trees';saveEconomy(s.economy);sceneCache={}}
 function activeOrders(s){return ORDERS.concat(EXTRA.slice(0,s.economy.houses))}
-function deliveryRoute(s){
- const pool=activeOrders(s).slice(),route=[];let cur=CAFE.door;
- while(pool.length){
-  let bi=0,bd=Infinity;
-  for(let i=0;i<pool.length;i++){const d=angle(cur,pool[i].door);if(d<bd){bd=d;bi=i}}
-  const site=pool.splice(bi,1)[0];route.push(site);cur=site.door;
- }
- return route;
-}
 function priceLevel(s){return Math.round(BASE_PRICE*(1+s.economy.quality*.25)*(1+s.economy.beauty*.18)*(1+s.economy.menu.length*MENU_BONUS))}
 function upgradeCost(cfg,level){return Math.round(cfg.base*Math.pow(cfg.mult,level))}
 function upgradeInfo(s,key){const cfg=UPGRADES[key],level=s.economy[key],maxed=level>=cfg.max;return {level,max:cfg.max,maxed,cost:maxed?null:upgradeCost(cfg,level)}}
@@ -90,68 +49,49 @@ function buyUpgrade(s,key){
  const cost=upgradeCost(cfg,level);if(s.economy.coins<cost)return false;
  s.economy.coins-=cost;s.economy[key]=level+1;
  let bonusHouse=false;
- if(key==='beauty'&&(s.level||1)>=BEAUTY_BONUS_LEVEL&&s.economy.houses<EXTRA.length&&Math.random()<.3){s.economy.houses++;bonusHouse=true}
+ if(key==='beauty'&&(s.level||1)>=MAX_LEVEL&&s.economy.houses<EXTRA.length&&Math.random()<.3){s.economy.houses++;bonusHouse=true}
  saveEconomy(s.economy);
  if(key==='beauty')sceneCache={};
  return {ok:true,bonusHouse};
 }
 const ZOOM_MIN=.32,ZOOM_MAX=2.3,TILT_DEFAULT=Math.atan2(15,8),TILT_MIN=.33,TILT_MAX=1.48;
-function newGame(){const n=flat(-.13,-.025),economy=loadEconomy();const s={n,north:[0,0,-1],facing:0,time:0,moving:false,sprinting:false,status:'ready',carrying:0,done:[],deliveries:0,level:economy.level||1,target:'cafe',locale:'ko',message:'카페 앞에서 커피를 받아 보세요.',messageTime:8,steps:0,round:1,economy,zoom:1,tilt:TILT_DEFAULT,yaw:0,effects:{bubbles:[],floats:[],confetti:null},effectClock:0,lastLine:{},route:[],levelGoal:0,trayCapacity:0};if(!s.economy.wants||!Object.keys(s.economy.wants).length)assignWants(s);return s;}
-function start(s){if(s.status==='ready'){s.levelGoal=computeGoal(s);s.status='playing'}else if(s.status==='paused')s.status='playing'}
+function newGame(){const n=flat(-.13,-.025),economy=loadEconomy();return {n,north:[0,0,-1],facing:0,time:0,moving:false,sprinting:false,status:'ready',carrying:0,done:[],deliveries:0,level:economy.level||1,target:'cafe',locale:'ko',message:'카페 앞에서 커피를 받아 보세요.',messageTime:8,steps:0,round:1,economy,zoom:1,tilt:TILT_DEFAULT,yaw:0};}
+function start(s){if(s.status==='ready'||s.status==='paused')s.status='playing'}
 function pause(s){if(s.status==='playing')s.status='paused';else if(s.status==='paused')s.status='playing'}
 function target(s){return SITES.find(x=>x.id===s.target)||CAFE}
-function nearest(s){const orders=activeOrders(s);const a=[CAFE,...orders].map(site=>({site,d:angle(s.n,site.door)})).sort((a,b)=>a.d-b.d)[0];return a.d<NEAR_DIST?a.site:null}
+function nearest(s){const orders=activeOrders(s);const a=[CAFE,...orders].map(site=>({site,d:angle(s.n,site.door)})).sort((a,b)=>a.d-b.d)[0];return a.d<.205?a.site:null}
 function announce(s,m){s.message=m;s.messageTime=5}
 function interact(s){
- if(s.status!=='playing')return false;const site=nearest(s),goal=s.levelGoal||computeGoal(s);
+ if(s.status!=='playing')return false;const site=nearest(s),orders=activeOrders(s),goal=levelTarget(s);
  if(!site){announce(s,'안내 화살표를 따라 이웃 앞으로 다가가세요.');return false}
  if(site.id==='cafe'){
   if(s.carrying){announce(s,'커피가 준비됐어요. 이웃에게 전해 주세요.');return false}
   if(s.deliveries>=goal)return false;
-  const route=deliveryRoute(s);
-  s.done=[];s.route=route.map(r=>r.id);s.carrying=Math.min(route.length,goal-s.deliveries);s.trayCapacity=s.carrying;s.target=s.route[0];announce(s,'따뜻한 마음 '+s.carrying+'잔, 배달을 시작해요.');return true;
+  s.done=[];s.carrying=Math.min(orders.length,goal-s.deliveries);s.target=orders[0].id;announce(s,'따뜻한 마음 '+s.carrying+'잔, 배달을 시작해요.');return true;
  }
  if(s.done.includes(site.id)){announce(s,'이번 트립에는 이미 배달했어요. 다음 이웃을 찾아보세요.');return false}
  if(!s.carrying){s.target='cafe';announce(s,'먼저 카페에서 커피를 받아 주세요.');return false}
- if(site.id!==s.target){const next=SITE_BY_ID[s.target];announce(s,'먼저 '+(next?next.name:'다음 이웃')+'에 배달해 주세요');return false}
  s.carrying--;s.done.push(site.id);s.deliveries++;const earn=priceLevel(s);s.economy.coins+=earn;saveEconomy(s.economy);
- s.effects.bubbles.push({siteId:site.id,text:pickLine(s,site),start:s.effectClock||0});
- s.effects.floats.push({siteId:site.id,value:earn,start:s.effectClock||0});
  if(s.deliveries>=goal){
   const bonus=Math.round(earn*goal*.3);s.economy.coins+=bonus;saveEconomy(s.economy);
-  s.status='won';s.target='cafe';s.round=(s.round||1)+1;announce(s,'레벨 '+s.level+' 완료! +'+earn+'코인, 보너스 +'+bonus+'코인');
-  s.effects.confetti=makeConfetti(s.effectClock||0);
+  s.status='won';s.target='cafe';s.round=(s.round||1)+1;announce(s,'레벨 '+s.level+' 완료! +'+earn+'코인, 보너스 +'+bonus+'코인')
  }else if(s.carrying>0){
-  s.target=s.route[s.done.length];announce(s,site.neighbor+' · "고마워요!" · +'+earn+'코인')
+  s.target=orders.find(o=>!s.done.includes(o.id)).id;announce(s,site.neighbor+' · "고마워요!" · +'+earn+'코인')
  }else{
   s.target='cafe';announce(s,site.neighbor+' · "고마워요!" · +'+earn+'코인 · 카페에서 다음 배달을 받아주세요')
  }
  return true;
 }
 const SPRINT_MULT=1.9;
-const PLAYER_MARGIN=.1,ROOF_EAVE=.17;
-function rectHit(px,pz,x0,x1,z0,z1,margin){const cx=clamp(px,x0,x1),cz=clamp(pz,z0,z1);return Math.hypot(px-cx,pz-cz)<margin}
-function blockedAt(px,pz,s){
- if(SITES.some(b=>rectHit(px,pz,b.n[0]-b.w/2-ROOF_EAVE,b.n[0]+b.w/2+ROOF_EAVE,b.n[2]-b.d/2-ROOF_EAVE,b.n[2]+b.d/2+ROOF_EAVE,PLAYER_MARGIN)))return true;
- const obs=getScene(s).obstacles;
- for(const o of obs){
-  if(o.type==='circle'){if(Math.hypot(px-o.x,pz-o.z)<o.r+PLAYER_MARGIN)return true}
-  else if(rectHit(px,pz,o.x0,o.x1,o.z0,o.z1,PLAYER_MARGIN))return true;
- }
- return false;
-}
 function step(s,dt,input={}){
  if(s.status!=='playing')return;dt=clamp(dt,0,.05);s.time+=dt;s.messageTime=Math.max(0,s.messageTime-dt);
  let x=input.x||0,y=input.y||0;const l=Math.hypot(x,y);if(l>1){x/=l;y/=l}s.moving=!!(x||y);
  s.sprinting=!!(input.sprint&&s.moving);
  if(!s.moving)return;
- const mult=s.sprinting?SPRINT_MULT:1,speed=.37*R*mult;
- let moved=false;
- const nx=s.n[0]+x*speed*dt;
- if(x&&!blockedAt(nx,s.n[2],s)){s.n[0]=nx;moved=true}
- const nz=s.n[2]+y*speed*dt;
- if(y&&!blockedAt(s.n[0],nz,s)){s.n[2]=nz;moved=true}
- if(moved){s.facing=Math.atan2(x,-y);s.steps+=dt*3*mult}
+ const mult=s.sprinting?SPRINT_MULT:1,speed=.37*R*mult,next=[s.n[0]+x*speed*dt,0,s.n[2]+y*speed*dt];
+ if(!SITES.some(b=>angle(next,b.n)<Math.max(b.w,b.d)/(2*R)+.033)){
+  s.n=next;s.facing=Math.atan2(x,-y);s.steps+=dt*3*mult;
+ }
 }
 function chooseTarget(s,id){if(id==='cafe'||activeOrders(s).some(o=>o.id===id&&!s.done.includes(id)))s.target=id}
 function lerpColor(a,b,t){const pa=a.slice(1).match(/../g).map(x=>parseInt(x,16)),pb=b.slice(1).match(/../g).map(x=>parseInt(x,16));return '#'+pa.map((v,i)=>Math.round(v+(pb[i]-v)*t).toString(16).padStart(2,'0')).join('')}
@@ -159,10 +99,8 @@ function lerpColor(a,b,t){const pa=a.slice(1).match(/../g).map(x=>parseInt(x,16)
 const LIGHT=norm([-1,2,3]);
 function shade(hex,k){const a=hex.slice(1).match(/../g).map(x=>parseInt(x,16));return '#'+a.map(v=>Math.round(clamp(v*k,0,255)).toString(16).padStart(2,'0')).join('')}
 let sceneCache={};
-function getScene(s){const cacheKey=s.locale+'#'+s.economy.beauty+'#'+s.economy.decorStyle+'#'+s.economy.menu.join(',')+'#'+cafeStage(s.economy.quality);return sceneCache[cacheKey]||(sceneCache[cacheKey]=makeScene(s.locale,s.economy.beauty,s.economy.decorStyle,s.economy.menu,cafeStage(s.economy.quality)))}
-function cafeStage(q){q=q||0;return q<=0?0:q<=3?1:q<=6?2:3}
-function makeScene(locale,beauty=0,decorStyle='trees',menu=[],cafeQ=0){
- const korean=locale==='ko',polys=[],labels=[],obstacles=[],bt=Math.min(1,beauty/10),treeStyle=decorStyle!=='houses';let currentLayer=0;
+function makeScene(locale,beauty=0,decorStyle='trees',menu=[]){
+ const korean=locale==='ko',polys=[],labels=[],bt=Math.min(1,beauty/10),treeStyle=decorStyle!=='houses';let currentLayer=0;
  const poly=(pts,color,lit=true)=>{let k=1;if(lit){const n=norm(cross(sub(pts[1],pts[0]),sub(pts[2],pts[0])));k=.77+.23*Math.abs(dot(n,LIGHT))}polys.push({pts,color:shade(color,k),layer:currentLayer})};
  function local(n,fn){return fn((x,y,z)=>[n[0]+x,y,n[2]-z])}
  function box(p,x,y,z,w,h,d,color){const q=[p(x-w/2,y,z-d/2),p(x+w/2,y,z-d/2),p(x+w/2,y+h,z-d/2),p(x-w/2,y+h,z-d/2),p(x-w/2,y,z+d/2),p(x+w/2,y,z+d/2),p(x+w/2,y+h,z+d/2),p(x-w/2,y+h,z+d/2)];[[0,1,2,3],[1,5,6,2],[4,7,6,5],[0,3,7,4],[3,2,6,7]].forEach(ids=>poly(ids.map(i=>q[i]),color))}
@@ -192,12 +130,6 @@ function makeScene(locale,beauty=0,decorStyle='trees',menu=[],cafeQ=0){
   if(s.type==='pavilion'){
    box(p,0,.12,0,s.w,.12,s.d,'#aa7754');for(const x of[-.52,.52])for(const z of[-.4,.4])box(p,x,.18,z,.085,s.h,.085,'#79543e');roof(p,s.w,s.d,1.02,korean?s.roof:'#ca9c7e',korean);
    box(p,0,.25,.27,1.08,.13,.25,'#9c694b');
-   // Beauty 4+: a small stone lantern beside the pavilion.
-   if(beauty>=4){
-    const lz=-s.d/2-.22;
-    box(p,0,.04,lz,.14,.08,.14,'#9a958a');box(p,0,.13,lz,.1,.07,.1,'#8a857a');box(p,0,.21,lz,.13,.035,.13,'#9a958a');
-    const lc=p(0,0,lz);obstacles.push({type:'circle',x:lc[0],z:lc[2],r:.15});
-   }
   }else{
    box(p,0,.12,0,s.w,s.h,s.d,s.color);
    if(korean||s.type==='cafe')roof(p,s.w,s.d,s.h+.15,korean?s.roof:'#b6836e',korean);else box(p,0,s.h+.1,0,s.w+.18,.22,s.d+.12,s.roof);
@@ -207,78 +139,9 @@ function makeScene(locale,beauty=0,decorStyle='trees',menu=[],cafeQ=0){
    for(const x of[-s.w*.48,s.w*.48])box(p,x,.12,front,.06,s.h,.04,'#997450');
    box(p,0,.085,-s.d*.65,.55,.10,.3,'#beb398');
    if(s.type==='shop'){box(p,0,s.h*.78,-s.d*.66,s.w*.9,.045,.46,s.id==='store'?'#749480':'#b1babe');for(let x=-.45;x<.5;x+=.15)box(p,x,s.h*.71,-s.d*.91,.08,.13,.018,'#f5ead1')}
-   if(s.type==='cafe'){
-    box(p,-.87,.1,-.31,.19,.4,.19,'#bb8264');box(p,-.87,.51,-.31,.25,.07,.25,'#f0dab1');ball(p(-.86,.75,-.31),.17,'#e6b888');
-    {const bc=p(-.87,0,-.31);obstacles.push({type:'circle',x:bc[0],z:bc[2],r:.16})}
-    // Quality 1-3: a striped awning over the door with a potted plant on either side.
-    if(cafeQ>=1){
-     const awY=.13+s.h*.76+.05,stripes=6,sw=.30/stripes;
-     for(let i=0;i<stripes;i++){const x=-.15+sw*(i+.5);box(p,x,awY,front-.07,sw*.92,.045,.22,i%2?'#b5463a':'#f4ead2')}
-     box(p,0,awY-.03,front-.16,.32,.02,.06,'#7a5338');
-     for(const dx of[-.22,.22]){box(p,dx,0,front-.14,.11,.11,.11,'#8a6a4c');ball(p(dx,.17,front-.14),.09,'#6f9a5c',1,1.1,1);const c=p(dx,0,front-.14);obstacles.push({type:'circle',x:c[0],z:c[2],r:.14})}
-    }
-    // Quality 4-6: two outdoor table-and-chair sets plus a small menu chalkboard.
-    if(cafeQ>=2){
-     for(const tx of[-.58,-.08]){
-      box(p,tx,.17,front-.33,.26,.03,.26,'#a9794f');
-      for(const [lx,lz] of[[-.1,-.1],[.1,-.1],[-.1,.1],[.1,.1]])box(p,tx+lx,.06,front-.33+lz,.03,.17,.03,'#6f5134');
-      for(const cx of[-.17,.17])box(p,tx+cx,.12,front-.33-.14,.14,.17,.14,'#8a6a4c');
-      const tc=p(tx,0,front-.33);obstacles.push({type:'circle',x:tc[0],z:tc[2],r:.24});
-     }
-     box(p,.3,.22,front-.02,.03,.34,.22,'#3a342c');box(p,.3,.30,front-.03,.17,.14,.01,'#efe7d0');
-     const cb=p(.3,0,front-.02);obstacles.push({type:'circle',x:cb[0],z:cb[2],r:.13});
-    }
-    // Quality 7-9: a wider annex to the west, with its own smaller roof.
-    if(cafeQ>=3){
-     const ew=.62,ed=.85,eh=s.h*.82,ex=-(s.w/2+ew/2);const ap=(x,y,z)=>p(x+ex,y,z);
-     box(ap,0,.12,0,ew,eh,ed,s.color);
-     roof(ap,ew,ed,eh+.13,korean?s.roof:'#b6836e',korean);
-     box(ap,0,.3,-ed/2-.01,.16,.3,.02,'#f0dab1');
-     obstacles.push({type:'rect',x0:s.n[0]+ex-ew/2,x1:s.n[0]+ex+ew/2,z0:s.n[2]-ed/2,z1:s.n[2]+ed/2});
-    }
-   }else if(beauty>=4){
-    // Beauty 4+: a doorside prop matching each building's character.
-    const dR=s.w*.36,dL=-s.w*.36,dz=front-.14;
-    const addObs=(x,z,r)=>{const w=p(x,0,z);obstacles.push({type:'circle',x:w[0],z:w[2],r})};
-    if(s.id==='books'){
-     box(p,dR,0,dz,.3,.5,.14,'#8a6a4c');
-     const spines=['#c0493c','#4c7a9c','#d9a53f','#5c8a5c','#8a5c8a'];
-     for(let k=0;k<5;k++)box(p,dR-.11+k*.055,.32,dz-.08,.045,.22,.02,spines[k%spines.length]);
-     addObs(dR,dz,.18);
-    }else if(s.id==='store'){
-     for(let k=0;k<2;k++){
-      box(p,dL,.04+k*.16,dz,.26,.14,.2,'#a9794f');
-      for(let m=0;m<3;m++)ball(p(dL-.08+m*.08,.15+k*.16,dz),.045,m%2?'#d9542f':'#9fb24a',1,.9,1);
-     }
-     addObs(dL,dz,.17);
-    }else if(s.id==='laundry'){
-     const lx1=-s.w*.4,lx2=s.w*.4,lz=front-.3;
-     box(p,lx1,0,lz,.03,.42,.03,'#8a7a5c');box(p,lx2,0,lz,.03,.42,.03,'#8a7a5c');
-     box(p,0,.42,lz,lx2-lx1+.06,.012,.012,'#b8ad8e');
-     const cloth=['#e9c9d0','#cfe0c6','#f0dca0'];
-     for(let k=0;k<3;k++)box(p,lx1+.15+k*((lx2-lx1-.3)/2),.33,lz,.12,.16,.01,cloth[k]);
-     addObs(lx1,lz,.1);addObs(lx2,lz,.1);
-    }else if(s.id==='home1'){
-     for(let k=0;k<5;k++)box(p,dR-.1+(k%3)*.08,.03+Math.floor(k/3)*.07,dz,.17,.06,.07,k%2?'#7a5a3c':'#8a6a4c');
-     addObs(dR,dz,.15);
-    }else if(s.id==='home2'){
-     ball(p(dL-.12,.1,dz),.1,'#3a3a3a',1,1,.3);ball(p(dL+.12,.1,dz),.1,'#3a3a3a',1,1,.3);
-     box(p,dL,.18,dz,.26,.02,.02,'#6a8a9a');box(p,dL,.1,dz,.02,.16,.02,'#6a8a9a');
-     addObs(dL,dz,.16);
-    }else if(s.id==='home3'){
-     ball(p(dR,.06,dz-.1),.08,'#5a5a5a',1,.8,1);
-     box(p,dR,.14,dz,.22,.1,.16,'#8a6a4c');
-     for(const hz of[-.14,.14])box(p,dR,.12,dz+hz,.02,.02,.12,'#6a4a2c');
-     addObs(dR,dz,.16);
-    }else if(s.id==='home4'){
-     ball(p(dR,.1,dz),.14,'#8a5c3c',1,1.2,1);ball(p(dR+.18,.08,dz),.1,'#9a6c4c',1,1.2,1);
-     addObs(dR+.09,dz,.2);
-    }else if(s.id==='home5'){
-     for(const dx of[dL,dR]){box(p,dx,0,dz,.12,.1,.12,'#8a6a4c');ball(p(dx,.13,dz),.09,'#e38fa0',1,.9,1);addObs(dx,dz,.13)}
-    }
-   }
+   if(s.type==='cafe'){box(p,-.87,.1,-.31,.19,.4,.19,'#bb8264');box(p,-.87,.51,-.31,.25,.07,.25,'#f0dab1');ball(p(-.86,.75,-.31),.17,'#e6b888');}
   }
-  labels.push({pos:p(0,s.h+.46,0),text:korean?s.name:s.en,kind:'sign',n:s.n,color:s.roof,scale:(s.id==='cafe'&&cafeQ>=3)?1.35:1});
+  labels.push({pos:p(0,s.h+.38,-s.d*.50-.05),text:korean?s.name:s.en,kind:'sign',n:s.n});
   // Earthenware jars and flowers are deliberate localization details.
   if(korean&&s.type!=='pavilion'){ball(p(s.w*.6,.24,.26),.18,'#8a624c',1,1.25,1);box(p,s.w*.6,.44,.26,.22,.035,.22,'#725442');ball(p(s.w*.69,.16,-.06),.12,'#a77856');}
   // "House" decoration style hangs lanterns and a banner that grow with the beauty upgrade.
@@ -294,14 +157,12 @@ function makeScene(locale,beauty=0,decorStyle='trees',menu=[],cafeQ=0){
   const lon=(rand()-.5)*TAU,lat=Math.asin((rand()-.5)*1.85),n=flat(lon,lat);
   if(angle(n,flat(-.13,-.025))<.3||SITES.some(s=>angle(n,s.n)<.27||angle(n,s.door)<.25))continue;
   local(n,p=>{box(p,0,.02,0,.065,.47,.065,'#8d7759');const blossom=korean&&(i%4===0||rand()<treeBoost*.5);ball(p(0,.70,0),.32,blossom?'#efc4b6':'#7d9d74',1,1.2,1);ball(p(.17,.56,.07),.24,blossom?'#f2d0be':'#98b17d');});
-  obstacles.push({type:'circle',x:n[0],z:n[2],r:.4});
  }
  // Extra trees planted along the outskirts once "tree" decoration is chosen.
  if(treeStyle)for(let i=0;i<Math.round(bt*40);i++){
   const lon=(rand()-.5)*TAU,lat=Math.asin((rand()-.5)*1.9),n=flat(lon,lat);
   if(angle(n,flat(-.13,-.025))<.32||SITES.some(s=>angle(n,s.n)<.3||angle(n,s.door)<.28))continue;
   local(n,p=>{box(p,0,.02,0,.06,.4,.06,'#8d7759');ball(p(0,.6,0),.28,i%3?'#7d9d74':'#efc4b6',1,1.15,1)});
-  obstacles.push({type:'circle',x:n[0],z:n[2],r:.3});
  }
  // Flowerbeds bloom along the paths as the town's beauty upgrade grows.
  const flowerHues=['#f2b7c9','#f7d38b','#c9e0a0','#e7a9c8','#f4c98f'],flowerCount=treeStyle?beauty*9:beauty*2;
@@ -309,26 +170,19 @@ function makeScene(locale,beauty=0,decorStyle='trees',menu=[],cafeQ=0){
   const lon=(rand()-.5)*TAU,lat=Math.asin((rand()-.5)*1.9),n=flat(lon,lat);
   if(angle(n,flat(-.13,-.025))<.26||SITES.some(s=>angle(n,s.n)<.22||angle(n,s.door)<.14))continue;
   local(n,p=>{ball(p(0,.09,0),.1,flowerHues[i%flowerHues.length],1,.85,1);ball(p(.09,.05,.04),.06,'#e8dcae',1,.8,1)});
-  obstacles.push({type:'circle',x:n[0],z:n[2],r:.14});
  }
  // A low garden wall, bench, small tiled gate, lanterns and a laundry line.
- {const n=flat(-.65,.14);local(n,p=>{for(let i=0;i<5;i++){box(p,(i-2)*.20,0,0,.185,.29,.13,'#b7ae94');box(p,(i-2)*.20,.29,0,.21,.06,.16,'#67756b')}});
-  obstacles.push({type:'rect',x0:n[0]-.4925,x1:n[0]+.4925,z0:n[2]-.065,z1:n[2]+.065});}
- {const n=flat(.48,.75);local(n,p=>{box(p,0,.22,0,.54,.08,.23,'#a17a57');box(p,0,.32,.10,.54,.18,.04,'#a17a57');for(const x of[-.2,.2])box(p,x,.02,0,.035,.22,.17,'#735e48')});
-  obstacles.push({type:'rect',x0:n[0]-.27,x1:n[0]+.27,z0:n[2]-.12,z1:n[2]+.12});}
- {const n=flat(.92,.53);local(n,p=>{for(const x of[-.4,.4])box(p,x,.02,0,.035,.7,.035,'#837963');box(p,0,.69,0,.85,.018,.018,'#968c73');for(let i=0;i<3;i++)box(p,(i-1)*.23,.4,0,.16,.28,.02,['#ecd1b3','#bbcec0','#ded6c0'][i])});
-  for(const x of[-.4,.4]){const pt=local(n,p=>p(x,0,0));obstacles.push({type:'circle',x:pt[0],z:pt[2],r:.06})}}
+ local(flat(-.65,.14),p=>{for(let i=0;i<5;i++){box(p,(i-2)*.20,0,0,.185,.29,.13,'#b7ae94');box(p,(i-2)*.20,.29,0,.21,.06,.16,'#67756b')}});
+ local(flat(.48,.75),p=>{box(p,0,.22,0,.54,.08,.23,'#a17a57');box(p,0,.32,.10,.54,.18,.04,'#a17a57');for(const x of[-.2,.2])box(p,x,.02,0,.035,.22,.17,'#735e48')});
+ local(flat(.92,.53),p=>{for(const x of[-.4,.4])box(p,x,.02,0,.035,.7,.035,'#837963');box(p,0,.69,0,.85,.018,.018,'#968c73');for(let i=0;i<3;i++)box(p,(i-1)*.23,.4,0,.16,.28,.02,['#ecd1b3','#bbcec0','#ded6c0'][i])});
  // A display counter beside the cafe fills up with each menu item the player adds.
- if(menu.length){
-  local(CAFE.n,p=>{
-   box(p,1.15,.05,-.85,1.5,.3,.42,'#a5794f');box(p,1.15,.35,-.85,1.6,.05,.5,'#d9bf98');
-   menu.forEach((id,i)=>{const m=MENU.find(x=>x.id===id),x=.55+i*.25;
-    if(m.kind==='drink')box(p,x,.4,-.85,.13,.26,.13,m.color);else ball(p(x,.5,-.85),.11,m.color,1,.75,1)});
-  });
-  obstacles.push({type:'rect',x0:CAFE.n[0]+.4,x1:CAFE.n[0]+1.9,z0:CAFE.n[2]+.64,z1:CAFE.n[2]+1.06});
- }
+ if(menu.length)local(CAFE.n,p=>{
+  box(p,1.15,.05,-.85,1.5,.3,.42,'#a5794f');box(p,1.15,.35,-.85,1.6,.05,.5,'#d9bf98');
+  menu.forEach((id,i)=>{const m=MENU.find(x=>x.id===id),x=.55+i*.25;
+   if(m.kind==='drink')box(p,x,.4,-.85,.13,.26,.13,m.color);else ball(p(x,.5,-.85),.11,m.color,1,.75,1)});
+ });
  // Original town props; no source project artwork is embedded.
- return {polys,labels,obstacles,ball,box,local,poly};
+ return {polys,labels,ball,box,local,poly};
 }
 function camera(s){
  const zoom=s.zoom||1,tilt=s.tilt||TILT_DEFAULT,yaw=s.yaw||0,D=17*zoom;
@@ -337,13 +191,13 @@ function camera(s){
  return {eye,f,right,up,project(v){const d=sub(v,eye),z=dot(d,f);return {x:W/2+dot(d,right)*980/z,y:433-dot(d,up)*980/z,z}}};
 }
 function draw(c,s,{overlay=true}={}){
- const scene=getScene(s);const cam=camera(s);c.save();c.clearRect(0,0,W,H);
+ const cacheKey=s.locale+'#'+s.economy.beauty+'#'+s.economy.decorStyle+'#'+s.economy.menu.join(',');const scene=sceneCache[cacheKey]||(sceneCache[cacheKey]=makeScene(s.locale,s.economy.beauty,s.economy.decorStyle,s.economy.menu));const cam=camera(s);c.save();c.clearRect(0,0,W,H);
  const bg=c.createLinearGradient(0,0,0,H);bg.addColorStop(0,'#eadac2');bg.addColorStop(1,'#f6eddc');c.fillStyle=bg;c.fillRect(0,0,W,H);
  c.fillStyle='#d9cbb344';c.beginPath();c.ellipse(W/2,737,230,25,0,0,TAU);c.fill();
  let polys=scene.polys.slice(),labels=scene.labels.slice();
  function dynPoly(pts,color){polys.push({pts,color,layer:2})}
  function ball(center,r,color,sx=1,sy=1,sz=1){for(let j=0;j<5;j++)for(let i=0;i<8;i++){const pts=[];for(const[a,b]of[[i,j],[i+1,j],[i+1,j+1],[i,j+1]]){let n=at(a/8*TAU,-Math.PI/2+b/5*Math.PI);pts.push(add(center,[n[0]*r*sx,n[1]*r*sy,n[2]*r*sz]))}const n=norm(cross(sub(pts[1],pts[0]),sub(pts[2],pts[0])));dynPoly(pts,shade(color,.82+.18*Math.abs(dot(n,LIGHT))))}}
- function person(n,isPlayer,color,waving=false){const fe=[1,0,0],fu=[0,0,-1],bob=isPlayer&&s.moving?Math.sin(s.steps*TAU)*.02:0;
+ function person(n,isPlayer,color){const fe=[1,0,0],fu=[0,0,-1],bob=isPlayer&&s.moving?Math.sin(s.steps*TAU)*.02:0;
   const pos=(x,y,z)=>[n[0]+x,y+bob,n[2]-z];
   ball(pos(0,.24,0),.17,color,1,1.5,.8);ball(pos(0,.53,0),.19,'#d7a576',1,1.07,.95);
   ball(pos(0,.68,.015),.145,'#675044',1,.55,1);
@@ -352,75 +206,24 @@ function draw(c,s,{overlay=true}={}){
   ball(pos(-.115,.47,-.14),.031,'#d88872',1,.6,.4);ball(pos(.115,.47,-.14),.031,'#d88872',1,.6,.4);
   const walk=isPlayer&&s.moving?Math.sin(s.steps*TAU)*.065:0;
   ball(pos(-.09,.066,walk),.073,'#574e42',.75,.8,1.45);ball(pos(.09,.066,-walk),.073,'#574e42',.75,.8,1.45);
-  const waveY=waving?.5+Math.sin((s.time||0)*9)*.09:.28,waveX=waving?.24:.195,waveZ=waving?-.05:-.07;
-  ball(pos(-.195,.28,-.07),.067,'#d7a576',.7,1,1);ball(pos(waveX,waveY,waveZ),.067,'#d7a576',.7,1,1);
+  ball(pos(-.195,.28,-.07),.067,'#d7a576',.7,1,1);ball(pos(.195,.28,-.07),.067,'#d7a576',.7,1,1);
   if(isPlayer&&s.carrying){
-   const items=(s.route||[]).slice((s.done||[]).length,(s.done||[]).length+s.carrying).map(id=>itemInfo(wantOf(s,id)));
-   const allCoffee=items.every(it=>it.id==='coffee');
-   const cap=Math.max(s.trayCapacity||s.carrying,1),rows=Math.max(1,Math.ceil(cap/2));
-   if(allCoffee){
-    const nearZ=-.13,farZ=-.30-(rows-1)*.16;
-    dynPoly([pos(-.20,.29,nearZ),pos(.20,.29,nearZ),pos(.20,.29,farZ),pos(-.20,.29,farZ)],'#966f4e');
-    for(let i=0;i<s.carrying;i++){const x=(i%2-.5)*.16,z=-.23-Math.floor(i/2)*.16;const base=pos(x,.3,z),top=pos(x,.435,z);for(let a=0;a<8;a++){const k=a/8*TAU,k2=(a+1)/8*TAU;dynPoly([add(base,add(mul(fe,Math.cos(k)*.048),mul(fu,Math.sin(k)*.048))),add(base,add(mul(fe,Math.cos(k2)*.048),mul(fu,Math.sin(k2)*.048))),add(top,add(mul(fe,Math.cos(k2)*.058),mul(fu,Math.sin(k2)*.058))),add(top,add(mul(fe,Math.cos(k)*.058),mul(fu,Math.sin(k)*.058)))],a%2?'#f0e7d1':'#e0d2b2')};ball(pos(x,.446,z),.058,'#805a40',1,.17,1)}
-   }else{
-    // A small pushcart carries anything beyond plain coffee: dessert/drink items ride in its bed.
-    const nearZ=-.17,farZ=-.36-(rows-1)*.17,wz=(nearZ+farZ)/2;
-    ball(pos(-.17,.1,wz),.1,'#3a342c',1,1,.32);ball(pos(.17,.1,wz),.1,'#3a342c',1,1,.32);
-    dynPoly([pos(-.23,.2,nearZ),pos(.23,.2,nearZ),pos(.23,.2,farZ),pos(-.23,.2,farZ)],'#7a5c3e');
-    dynPoly([pos(-.23,.2,nearZ),pos(-.23,.34,nearZ-.03),pos(-.23,.34,farZ+.03),pos(-.23,.2,farZ)],'#6a4e32');
-    dynPoly([pos(.23,.2,nearZ),pos(.23,.34,nearZ-.03),pos(.23,.34,farZ+.03),pos(.23,.2,farZ)],'#6a4e32');
-    dynPoly([pos(-.08,.34,nearZ-.18),pos(.08,.34,nearZ-.18),pos(.08,.3,nearZ-.03),pos(-.08,.3,nearZ-.03)],'#5c4530');
-    for(let i=0;i<items.length;i++){const it=items[i],x=(i%2-.5)*.18,z=nearZ-.24-Math.floor(i/2)*.17,c=pos(x,.3,z);
-     if(it.id==='coffee')ball(c,.065,'#805a40',1,.65,1);
-     else if(it.kind==='drink')ball(c,.07,it.color,.72,1.1,.72);
-     else ball(c,.075,it.color,1,.82,1);
-    }
-   }
+   dynPoly([pos(-.20,.29,-.13),pos(.20,.29,-.13),pos(.20,.29,-.46),pos(-.20,.29,-.46)],'#966f4e');
+   for(let i=0;i<s.carrying;i++){const x=(i%2-.5)*.16,z=-.23-Math.floor(i/2)*.16;const base=pos(x,.3,z),top=pos(x,.435,z);for(let a=0;a<8;a++){const k=a/8*TAU,k2=(a+1)/8*TAU;dynPoly([add(base,add(mul(fe,Math.cos(k)*.048),mul(fu,Math.sin(k)*.048))),add(base,add(mul(fe,Math.cos(k2)*.048),mul(fu,Math.sin(k2)*.048))),add(top,add(mul(fe,Math.cos(k2)*.058),mul(fu,Math.sin(k2)*.058))),add(top,add(mul(fe,Math.cos(k)*.058),mul(fu,Math.sin(k)*.058)))],a%2?'#f0e7d1':'#e0d2b2')};ball(pos(x,.446,z),.058,'#805a40',1,.17,1)}
   }
  }
  const orders=activeOrders(s),palette=['#af7869','#8d9675','#a29dab','#b89868','#93a878','#c98f9e','#8fa8b8','#bfa06a','#a081ab'];
- orders.forEach((o,i)=>{const delivered=s.done.includes(o.id);const waving=s.status==='playing'&&s.carrying>0&&!delivered&&angle(s.n,o.door)<NEAR_DIST;person(o.door,false,delivered?'#829b75':palette[i%palette.length],waving);if(!delivered)labels.push({pos:[o.door[0],1.03,o.door[2]],text:'·',kind:'pin',n:o.door,id:o.id});});
+ orders.forEach((o,i)=>{person(o.door,false,s.done.includes(o.id)?'#829b75':palette[i%palette.length]);if(!s.done.includes(o.id))labels.push({pos:[o.door[0],1.03,o.door[2]],text:'·',kind:'pin',n:o.door,id:o.id});});
  person(s.n,true,'#467f76');
  labels.push({pos:[CAFE.door[0],.85,CAFE.door[2]],text:'☕',kind:'pin',n:CAFE.door,id:'cafe'});
- // Quality 10: a string of fairy lights along the cafe eave, twinkling.
- if((s.economy.quality||0)>=10){
-  const eaveY=CAFE.h+.08,eaveWorldZ=CAFE.n[2]+CAFE.d/2+.25,n=9,halfW=CAFE.w/2-.05;
-  for(let i=0;i<n;i++){const lx=-halfW+(2*halfW)*(i/(n-1)),tw=.5+.5*Math.sin(s.time*4+i*1.3);
-   ball([CAFE.n[0]+lx,eaveY,eaveWorldZ],.035+tw*.018,lerpColor('#8a5a2e','#ffe08a',tw),1,1,1)}
- }
  const faces=[];for(const p of polys){const pts=p.pts.map(cam.project);if(pts.some(p=>p.z<=.1))continue;faces.push({pts,color:p.color,layer:p.layer,z:pts.reduce((a,p)=>a+p.z,0)/pts.length})}faces.sort((a,b)=>a.layer-b.layer||b.z-a.z);
  for(const p of faces){c.fillStyle=p.color;c.beginPath();p.pts.forEach((v,i)=>i?c.lineTo(v.x,v.y):c.moveTo(v.x,v.y));c.closePath();c.fill();if(p.layer===0){c.strokeStyle=p.color;c.lineWidth=.65;c.stroke()}}
  // Labels are billboarded above their own buildings, in front-to-back order.
  for(const l of labels){const p=cam.project(l.pos);if(p.z<=.1)continue;if(l.kind==='sign'){
-  const sc=l.scale||1;c.font='500 '+Math.round(14*sc)+'px "Workshop", "Noto Sans KR", sans-serif';const width=c.measureText(l.text).width+20*sc,height=24*sc;
-  const wood=shade(l.color||'#8a6a4a',1.05),frame=shade(wood,.62),edge=shade(wood,1.3);
-  c.fillStyle=frame;c.beginPath();c.roundRect(p.x-width/2-3*sc,p.y-14*sc,width+6*sc,height+6*sc,5*sc);c.fill();
-  c.fillStyle=wood;c.beginPath();c.roundRect(p.x-width/2,p.y-11*sc,width,height,4*sc);c.fill();
-  c.strokeStyle=edge;c.lineWidth=1;c.beginPath();c.roundRect(p.x-width/2+1.5*sc,p.y-9.5*sc,width-3*sc,height-3*sc,3*sc);c.stroke();
-  c.fillStyle='#fdf6e3';c.textAlign='center';c.fillText(l.text,p.x,p.y+5*sc);
- }else if(l.id===s.target){const bounce=Math.sin(s.time*3)*3;c.fillStyle='#b5704f';c.beginPath();c.moveTo(p.x,p.y+13+bounce);c.lineTo(p.x-8,p.y-1+bounce);c.lineTo(p.x+8,p.y-1+bounce);c.fill();c.beginPath();c.arc(p.x,p.y-14+bounce,15,0,TAU);c.fill();c.fillStyle='#fff7e5';c.font='500 17px sans-serif';c.textAlign='center';c.fillText(l.id==='cafe'?'C':String(s.route.indexOf(l.id)+1),p.x,p.y-8+bounce);
-  if(l.id!=='cafe'){c.font='16px sans-serif';c.fillText(itemInfo(wantOf(s,l.id)).icon,p.x+20,p.y-11+bounce)}}}
- // Delivery feedback: thank-you bubbles with a heart, and coins that fly to the HUD readout.
- for(const b of s.effects.bubbles){const site=SITE_BY_ID[b.siteId];if(!site)continue;const p=cam.project([site.door[0],1.05,site.door[2]]);if(p.z<=.1)continue;
-  const age=(s.effectClock||0)-b.start,life=2.4,fade=age>life-.4?clamp(1-(age-(life-.4))/.4,0,1):1;
-  c.save();c.globalAlpha=fade;c.textAlign='center';
-  c.font='500 13px "Workshop","Noto Sans KR",sans-serif';const bw=Math.max(60,c.measureText(b.text).width+20);
-  c.fillStyle='#fff8ea';c.beginPath();c.roundRect(p.x-bw/2,p.y-64,bw,26,8);c.fill();
-  c.fillStyle='#4a4038';c.fillText(b.text,p.x,p.y-46);
-  c.font='20px sans-serif';c.fillText('❤️',p.x,p.y-20);c.restore();
- }
- for(const f of s.effects.floats){const site=SITE_BY_ID[f.siteId];if(!site)continue;const p0=cam.project([site.door[0],.9,site.door[2]]);if(p0.z<=.1)continue;
-  const t=clamp(((s.effectClock||0)-f.start)/1,0,1),ease=1-Math.pow(1-t,3),tx=918,ty=126;
-  const x=p0.x+(tx-p0.x)*ease,y=p0.y-30*Math.sin(Math.PI*t)+(ty-p0.y)*ease;
-  c.save();c.globalAlpha=1-Math.pow(t,3);c.font='600 16px "Workshop","Noto Sans KR",sans-serif';c.fillStyle='#c9973f';c.textAlign='center';c.fillText('+'+f.value,x,y);c.restore();
- }
- if(s.effects.confetti){const ct=(s.effectClock||0)-s.effects.confetti.start,dur=2.6;
-  if(ct<dur){c.save();for(const pc of s.effects.confetti.pieces){const lt=ct-pc.delay;if(lt<0)continue;const y=-20+lt*pc.speed;if(y>H+20)continue;const x=pc.x+Math.sin(lt*2+pc.rot)*pc.drift*.2;
-   c.save();c.translate(x,y);c.rotate(pc.rot+lt*pc.spin);c.globalAlpha=clamp(1-ct/dur,0,1);c.fillStyle=pc.color;c.fillRect(-4,-6,8,12);c.restore();}
-  c.restore();}
- }
+  c.font='500 14px "Workshop", "Noto Sans KR", sans-serif';const width=c.measureText(l.text).width+18;c.fillStyle='#faf2df';c.fillRect(p.x-width/2,p.y-12,width,24);c.fillStyle='#49584a';c.textAlign='center';c.fillText(l.text,p.x,p.y+5);
+ }else if(l.id===s.target){const bounce=Math.sin(s.time*3)*3;c.fillStyle='#b5704f';c.beginPath();c.moveTo(p.x,p.y+13+bounce);c.lineTo(p.x-8,p.y-1+bounce);c.lineTo(p.x+8,p.y-1+bounce);c.fill();c.beginPath();c.arc(p.x,p.y-14+bounce,15,0,TAU);c.fill();c.fillStyle='#fff7e5';c.font='500 17px sans-serif';c.textAlign='center';c.fillText(l.id==='cafe'?'C':String(orders.findIndex(o=>o.id===l.id)+1),p.x,p.y-8+bounce)}}
  c.textAlign='left';c.fillStyle='#3c5347';c.font='400 14px "Workshop", "Noto Sans KR", sans-serif';c.fillText('A LITTLE WORLD, A WARM CUP',42,44);c.font='500 37px "Workshop", "Noto Sans KR", sans-serif';c.fillText(s.locale==='ko'?'달동네 커피':'Neighborhood Coffee',40,95);c.font='400 15px "Workshop", "Noto Sans KR", sans-serif';c.fillStyle='#687763';c.fillText('서두르지 않아도 괜찮아요.',43,126);
- c.fillStyle='#f8f2e5';c.beginPath();c.roundRect(913,30,257,156,8);c.fill();c.fillStyle='#3c5347';c.font='500 15px "Workshop", "Noto Sans KR", sans-serif';c.fillText('레벨 '+(s.level||1),936,53);c.fillStyle='#8a9484';c.font='400 11px "Workshop", "Noto Sans KR", sans-serif';const menuHint=nextMenuHint(s);c.fillText(menuHint===null?'모든 메뉴 해금 완료':'다음 메뉴까지 '+menuHint+'스테이지',936,68);c.fillStyle='#485a48';c.font='500 18px "Workshop", "Noto Sans KR", sans-serif';c.fillText('배달  '+s.deliveries+' / '+currentGoal(s),936,91);c.font='400 15px "Workshop", "Noto Sans KR", sans-serif';c.fillText('들고 있는 커피  '+s.carrying+'잔',936,116);c.fillStyle='#8a5a2e';c.font='500 16px "Workshop", "Noto Sans KR", sans-serif';c.fillText('코인 💰 '+s.economy.coins.toLocaleString('ko-KR'),936,141);c.font='400 15px sans-serif';c.fillStyle='#4a5a45';c.fillText('☕'+MENU.filter(m=>s.economy.menu.includes(m.id)).map(m=>m.icon).join(''),936,161);
+ c.fillStyle='#f8f2e5';c.beginPath();c.roundRect(913,30,257,142,8);c.fill();c.fillStyle='#3c5347';c.font='500 15px "Workshop", "Noto Sans KR", sans-serif';c.fillText('레벨 '+(s.level||1)+(s.level>=MAX_LEVEL?' (MAX)':''),936,55);c.fillStyle='#485a48';c.font='500 18px "Workshop", "Noto Sans KR", sans-serif';c.fillText('배달  '+s.deliveries+' / '+levelTarget(s),936,82);c.font='400 15px "Workshop", "Noto Sans KR", sans-serif';c.fillText('들고 있는 커피  '+s.carrying+'잔',936,107);c.fillStyle='#8a5a2e';c.font='500 16px "Workshop", "Noto Sans KR", sans-serif';c.fillText('코인 💰 '+s.economy.coins.toLocaleString('ko-KR'),936,132);c.font='400 13px "Workshop", "Noto Sans KR", sans-serif';c.fillStyle='#a17c4a';c.fillText('≈ ₩'+(s.economy.coins*KRW_PER_COIN).toLocaleString('ko-KR'),936,151);
  if(s.sprinting){c.fillStyle='#c9973f';c.font='500 15px "Workshop", "Noto Sans KR", sans-serif';c.fillText('⚡ 가속 중',43,150)}
  // A compass points toward the target across the flat map, including distant houses.
  if(s.status!=='won'){
@@ -431,9 +234,9 @@ function draw(c,s,{overlay=true}={}){
  const near=nearest(s);if(s.status==='playing'&&near){c.textAlign='center';c.fillStyle='#3f6151';c.beginPath();c.roundRect(362,716,476,42,21);c.fill();c.fillStyle='#fff8e7';c.font='400 17px "Workshop", "Noto Sans KR", sans-serif';c.fillText('E / Space  ·  '+(near.id==='cafe'?'커피 받기':s.done.includes(near.id)?'인사 나누기':'커피 전하기'),600,743)}
  c.textAlign='center';if(s.messageTime>0&&s.status==='playing'){c.fillStyle='#405a48';c.font='400 15px "Workshop", "Noto Sans KR", sans-serif';c.fillText(s.message,600,783)}
  if(overlay&&s.status!=='playing'){
-  const goal=currentGoal(s);
+  const goal=levelTarget(s);
   c.fillStyle='#f4ebdbe8';c.beginPath();c.roundRect(278,284,644,254,12);c.fill();c.fillStyle='#405a48';c.font='500 36px "Workshop", "Noto Sans KR", sans-serif';c.fillText(s.status==='ready'?'커피 한 잔의 작은 여행':s.status==='paused'?'잠깐 쉬어 가요':'레벨 '+s.level+' 완료!',600,347);
-  c.font='400 18px "Workshop", "Noto Sans KR", sans-serif';c.fillText(s.status==='won'?((s.level||1)>=ROUND_DOUBLE_LEVEL?(menuSlots(s)>0?'새 메뉴를 추가할 수 있어요! ':'')+'마을과 카페를 꾸미고 이웃을 늘려보세요.':'아래에서 이웃을 늘리거나 다음 레벨로 넘어가세요.'):s.status==='paused'?'계속하기를 누르면 마을로 돌아갑니다.':'카페에서 커피를 받아 '+goal+'잔을 배달해 보세요.',600,394);
+  c.font='400 18px "Workshop", "Noto Sans KR", sans-serif';c.fillText(s.status==='won'?(s.level>=MAX_LEVEL?(menuSlots(s)>0?'새 메뉴를 추가할 수 있어요! ':'')+'마을과 카페를 꾸미고 이웃을 늘려보세요.':'아래에서 이웃을 늘리거나 다음 레벨로 넘어가세요.'):s.status==='paused'?'계속하기를 누르면 마을로 돌아갑니다.':'카페에서 커피를 받아 '+goal+'잔을 배달해 보세요.',600,394);
   c.fillText('방향키 / WASD 이동  ·  E / Space 대화',600,436);c.fillStyle='#aa6e50';c.font='400 16px "Workshop", "Noto Sans KR", sans-serif';c.fillText('아래 '+(s.status==='won'?'다음 레벨 버튼':s.status==='paused'?'계속하기':'산책 시작')+' 버튼',600,486);
  }c.restore();
 }
@@ -446,7 +249,7 @@ function mount(canvas,onUpdate=()=>{}){
  const pointermove=e=>{if(!dragging)return;const dx=e.clientX-dragX,dy=dragY-e.clientY;s.tilt=clamp(dragTilt+dy*.0035,TILT_MIN,TILT_MAX);s.yaw=(dragYaw-dx*.0045)%TAU};
  const pointerup=()=>{dragging=false};
  const doStart=()=>{if(s.status==='won'){const l=s.locale,z=s.zoom,t=s.tilt,yw=s.yaw,lvl=(s.level||1)+1;s=newGame();s.locale=l;s.zoom=z;s.tilt=t;s.yaw=yw;s.level=lvl;s.economy.level=lvl;saveEconomy(s.economy)}start(s)};
- const doReset=()=>{const l=s.locale,z=s.zoom,t=s.tilt,yw=s.yaw;s=newGame();s.locale=l;s.zoom=z;s.tilt=t;s.yaw=yw;s.level=1;s.economy.level=1;s.economy.quality=0;resetWantsToCoffee(s);sceneCache={};keys.clear();pointer={x:0,y:0}};
+ const doReset=()=>{const l=s.locale,z=s.zoom,t=s.tilt,yw=s.yaw,lvl=s.level;s=newGame();s.locale=l;s.zoom=z;s.tilt=t;s.yaw=yw;s.level=lvl;keys.clear();pointer={x:0,y:0}};
  let externalSprint=false;
  const keydown=e=>{if(/INPUT|TEXTAREA|SELECT/.test(e.target?.tagName))return;const k=e.key.toLowerCase();if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d','e',' '].includes(k)){e.preventDefault();if((k==='e'||k===' ')&&!e.repeat)interact(s);else keys.add(k)}else if(k==='shift')keys.add('shift');else if(k==='+'||k==='=')setZoom(.85);else if(k==='-'||k==='_')setZoom(1/.85);else if(k==='enter')doStart();else if(k==='p')pause(s);else if(k==='r')doReset()};
  const keyup=e=>keys.delete(e.key.toLowerCase());
@@ -454,11 +257,11 @@ function mount(canvas,onUpdate=()=>{}){
  const visibility=()=>{if(document.hidden)blur()};
  canvas.addEventListener('wheel',wheel,{passive:false});
  canvas.addEventListener('pointerdown',pointerdown);canvas.addEventListener('pointermove',pointermove);canvas.addEventListener('pointerup',pointerup);canvas.addEventListener('pointercancel',pointerup);
- function loop(ms){if(!alive)return;const dt=last?(ms-last)/1000:0;last=ms;s.effectClock=(s.effectClock||0)+clamp(dt,0,.05);updateEffects(s);step(s,dt,{x:pointer.x+(keys.has('arrowright')||keys.has('d')?1:0)-(keys.has('arrowleft')||keys.has('a')?1:0),y:pointer.y+(keys.has('arrowdown')||keys.has('s')?1:0)-(keys.has('arrowup')||keys.has('w')?1:0),sprint:keys.has('shift')||externalSprint});draw(c,s);onUpdate(s);raf=requestAnimationFrame(loop)}
+ function loop(ms){if(!alive)return;const dt=last?(ms-last)/1000:0;last=ms;step(s,dt,{x:pointer.x+(keys.has('arrowright')||keys.has('d')?1:0)-(keys.has('arrowleft')||keys.has('a')?1:0),y:pointer.y+(keys.has('arrowdown')||keys.has('s')?1:0)-(keys.has('arrowup')||keys.has('w')?1:0),sprint:keys.has('shift')||externalSprint});draw(c,s);onUpdate(s);raf=requestAnimationFrame(loop)}
  addEventListener('keydown',keydown);addEventListener('keyup',keyup);addEventListener('blur',blur);document.addEventListener('visibilitychange',visibility);raf=requestAnimationFrame(loop);
  return {get state(){return s},start(){doStart()},pause(){pause(s)},reset(){doReset()},interact(){interact(s)},locale(l){s.locale=l==='ko'?'ko':'en'},target(id){chooseTarget(s,id)},pointer(x,y){pointer={x,y}},zoom(mult){setZoom(mult)},sprint(held){externalSprint=held},destroy(){alive=false;cancelAnimationFrame(raf);removeEventListener('keydown',keydown);removeEventListener('keyup',keyup);removeEventListener('blur',blur);document.removeEventListener('visibilitychange',visibility);canvas.removeEventListener('wheel',wheel);canvas.removeEventListener('pointerdown',pointerdown);canvas.removeEventListener('pointermove',pointermove);canvas.removeEventListener('pointerup',pointerup);canvas.removeEventListener('pointercancel',pointerup)}};
 }
-return {W,H,R,SITES,ORDERS,EXTRA,CAFE,KRW_PER_COIN,ROUND_DOUBLE_LEVEL,BEAUTY_BONUS_LEVEL,MENU_UNLOCK_SCHEDULE,levelRounds,computeGoal,computeGoalForLevel,currentGoal,menuUnlockLevel,nextMenuHint,MENU,menuSlots,menuCost,buyMenu,priceLevel,newGame,start,pause,step,blockedAt,getScene,interact,nearest,target,chooseTarget,activeOrders,deliveryRoute,upgradeInfo,buyUpgrade,setDecorStyle,itemInfo,wantOf,assignWants,resetWantsToCoffee,draw,mount,math:{add,sub,mul,dot,cross,len,norm,at,angle,frame},camera};
+return {W,H,R,SITES,ORDERS,EXTRA,CAFE,KRW_PER_COIN,MAX_LEVEL,LEVEL_TARGETS,levelTarget,MENU,menuSlots,menuCost,buyMenu,priceLevel,newGame,start,pause,step,interact,nearest,target,chooseTarget,activeOrders,upgradeInfo,buyUpgrade,setDecorStyle,draw,mount,math:{add,sub,mul,dot,cross,len,norm,at,angle,frame},camera};
 });
 
 let lastStatus=null;
@@ -468,7 +271,7 @@ sprintBtn.onpointerdown=e=>{e.preventDefault();sprintBtn.setPointerCapture(e.poi
 const stopSprint=()=>game.sprint(false);
 sprintBtn.onpointerup=stopSprint;sprintBtn.onpointercancel=stopSprint;sprintBtn.onlostpointercapture=stopSprint;
 const held=new Map();function move(){let x=0,y=0;held.forEach(v=>{x+=v[0];y+=v[1]});game.pointer(x,y)}document.querySelectorAll('[data-dir]').forEach(b=>{b.onpointerdown=e=>{e.preventDefault();b.setPointerCapture(e.pointerId);held.set(e.pointerId,b.dataset.dir.split(',').map(Number));move()};const stop=e=>{held.delete(e.pointerId);move()};b.onpointerup=stop;b.onpointercancel=stop;b.onlostpointercapture=stop});addEventListener('blur',()=>{held.clear();move()});
-const shopEl=document.querySelector('#shop'),shopLabels={beauty:['마을 미화','거리를 꽃과 등불로 꾸며 손님 기분이 좋아지고, 커피 가격이 올라가요.'],quality:['카페 확장 · 원두 품질','더 좋은 원두를 들여와 커피 가격이 올라가고, 카페 외관도 단계별로 커져요.'],houses:['새 이웃집','배달할 새 이웃집을 하나 더 열어요. 손님이 늘면 한 라운드 수입도 늘어요.']};
+const shopEl=document.querySelector('#shop'),shopLabels={beauty:['마을 미화','거리를 꽃과 등불로 꾸며 손님 기분이 좋아지고, 커피 가격이 올라가요.'],quality:['원두 품질','더 좋은 원두를 들여와 커피 가격이 올라가요.'],houses:['새 이웃집','배달할 새 이웃집을 하나 더 열어요. 손님이 늘면 한 라운드 수입도 늘어요.']};
 const shopKeyNum={beauty:1,quality:2,houses:3};
 function renderShop(){
  const s=game.state,e=s.economy;
@@ -482,7 +285,7 @@ function renderShop(){
  });
  shopEl.querySelectorAll('.decorPick button').forEach(b=>b.classList.toggle('active',e.decorStyle===b.dataset.style));
  const slots=Daldongne.menuSlots(s),cost=Daldongne.menuCost(s),menuEl=document.querySelector('#menuList');
- menuEl.innerHTML='<h3>☕ 카페 메뉴 <small>'+e.menu.length+'/'+Daldongne.MENU.length+' · 추가 가능 슬롯 '+Math.max(0,slots)+' (5레벨부터 3레벨마다 +1)</small></h3>'+Daldongne.MENU.map((m,i)=>{
+ menuEl.innerHTML='<h3>☕ 카페 메뉴 <small>'+e.menu.length+'/'+Daldongne.MENU.length+' · 추가 가능 슬롯 '+Math.max(0,slots)+' (레벨 '+Daldongne.MAX_LEVEL+' 이후 3레벨마다 +1)</small></h3>'+Daldongne.MENU.map((m,i)=>{
   const owned=e.menu.includes(m.id);
   return '<div class="mrow"><span>'+m.icon+' '+m.name+' <small>('+(m.kind==='snack'?'간식':'음료')+' · 가격 +12%)</small></span><button data-menu="'+m.id+'"'+(owned||slots<1||e.coins<cost?' disabled':'')+'>'+(owned?'판매 중':'('+(i+4)+') 추가 · '+cost+'코인')+'</button></div>'}).join('');
  menuEl.querySelectorAll('button[data-menu]').forEach(b=>b.onclick=()=>buyMenuAndRefresh(b.dataset.menu));
@@ -502,17 +305,17 @@ function renderLevelChoice(){
  if(s.status!=='won'){levelChoiceEl.classList.add('hidden');levelChoiceEl.innerHTML='';return}
  levelChoiceEl.classList.remove('hidden');
  const lvl=s.level||1;
- if(lvl<Daldongne.ROUND_DOUBLE_LEVEL){
-  const hInfo=Daldongne.upgradeInfo(s,'houses'),nextGoal=Daldongne.computeGoalForLevel(s,lvl+1);
+ if(lvl<Daldongne.MAX_LEVEL){
+  const hInfo=Daldongne.upgradeInfo(s,'houses'),nextGoal=Daldongne.levelTarget({level:Math.min(lvl+1,Daldongne.MAX_LEVEL)});
   levelChoiceEl.innerHTML='<button id="lcHouses">🧑‍🤝‍🧑 이웃 늘리기 · '+(hInfo.maxed?'MAX':hInfo.cost+'코인')+'</button><button id="lcNext">☕ 다음 레벨로 ('+nextGoal+'잔)</button>';
   const hb=document.querySelector('#lcHouses');hb.disabled=hInfo.maxed||s.economy.coins<hInfo.cost;
   hb.onclick=()=>buyAndToast('houses');
   document.querySelector('#lcNext').onclick=()=>{game.start();document.querySelector('canvas').focus()};
  }else{
   const qInfo=Daldongne.upgradeInfo(s,'quality'),bInfo=Daldongne.upgradeInfo(s,'beauty'),hInfo=Daldongne.upgradeInfo(s,'houses');
-  const slots=Daldongne.menuSlots(s),allMenu=s.economy.menu.length>=Daldongne.MENU.length,wait=Daldongne.nextMenuHint(s);
+  const slots=Daldongne.menuSlots(s),allMenu=s.economy.menu.length>=Daldongne.MENU.length,wait=Daldongne.MAX_LEVEL+3*s.economy.menu.length-s.level;
   const menuLabel=allMenu?'🍰 메뉴 완성':slots>0?'🍰 메뉴 추가 (슬롯 '+slots+')':'🍰 메뉴 추가 ('+wait+'레벨 후)';
-  levelChoiceEl.innerHTML='<button id="lcQuality">☕ 카페 확장 · 원두 품질 · '+(qInfo.maxed?'MAX':qInfo.cost+'코인')+'</button><button id="lcDecor">🌿 마을 꾸미기 · '+(bInfo.maxed?'MAX':bInfo.cost+'코인')+'</button><button id="lcHouses">🧑‍🤝‍🧑 이웃 늘리기 · '+(hInfo.maxed?'MAX':hInfo.cost+'코인')+'</button><button id="lcMenu">'+menuLabel+'</button><button id="lcNext">다음 라운드</button>';
+  levelChoiceEl.innerHTML='<button id="lcQuality">☕ 카페 확장 · '+(qInfo.maxed?'MAX':qInfo.cost+'코인')+'</button><button id="lcDecor">🌿 마을 꾸미기 · '+(bInfo.maxed?'MAX':bInfo.cost+'코인')+'</button><button id="lcHouses">🧑‍🤝‍🧑 이웃 늘리기 · '+(hInfo.maxed?'MAX':hInfo.cost+'코인')+'</button><button id="lcMenu">'+menuLabel+'</button><button id="lcNext">다음 라운드</button>';
   const qb=document.querySelector('#lcQuality');qb.disabled=qInfo.maxed||s.economy.coins<qInfo.cost;qb.onclick=()=>buyAndToast('quality');
   const db=document.querySelector('#lcDecor');db.disabled=bInfo.maxed||s.economy.coins<bInfo.cost;db.onclick=()=>buyAndToast('beauty');
   const hb=document.querySelector('#lcHouses');hb.disabled=hInfo.maxed||s.economy.coins<hInfo.cost;hb.onclick=()=>buyAndToast('houses');
