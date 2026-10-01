@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>커피 배달 게임 — 프롬프트 구조화 A/B 비교</title>
+<style>
+  :root{
+    --bg:#1b1410;
+    --panel:#2a211b;
+    --ink:#f3ead9;
+    --sub:#c9b79f;
+    --a-accent:#d98a6a;
+    --b-accent:#7fb599;
+    --line:#443529;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;width:100%;height:100%;
+    background:var(--bg);color:var(--ink);
+    font-family:"Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+    overflow:hidden;
+  }
+  .deck{
+    position:relative;width:100%;height:100vh;
+  }
+  .slide{
+    position:absolute;inset:0;
+    display:none;
+    flex-direction:column;
+    padding:48px 64px 32px;
+    opacity:0;
+    transition:opacity .25s ease;
+  }
+  .slide.active{
+    display:flex;
+    opacity:1;
+  }
+  .eyebrow{
+    font-size:16px;color:var(--sub);letter-spacing:.08em;
+    margin-bottom:6px;
+  }
+  h1{
+    font-size:40px;margin:0 0 8px;line-height:1.25;
+  }
+  h2{
+    font-size:30px;margin:0 0 20px;line-height:1.3;
+    border-bottom:2px solid var(--line);padding-bottom:14px;
+  }
+  .subtitle{
+    font-size:19px;color:var(--sub);margin:0 0 4px;
+  }
+  .columns{
+    display:flex;gap:28px;flex:1;min-height:0;
+  }
+  .col{
+    flex:1;
+    background:var(--panel);
+    border-radius:14px;
+    padding:20px 22px;
+    display:flex;flex-direction:column;
+    min-height:0;
+    border-top:5px solid var(--line);
+  }
+  .col.a{border-top-color:var(--a-accent);}
+  .col.b{border-top-color:var(--b-accent);}
+  .col-title{
+    font-size:22px;font-weight:bold;margin:0 0 10px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .tag{
+    display:inline-block;font-size:13px;padding:2px 10px;border-radius:999px;
+    color:#1b1410;font-weight:bold;
+  }
+  .tag.a{background:var(--a-accent);}
+  .tag.b{background:var(--b-accent);}
+  .col ul{margin:0 0 10px 0;padding-left:20px;font-size:17px;line-height:1.55;}
+  .col p{font-size:17px;line-height:1.6;margin:0 0 10px;}
+  .col .quote{
+    font-size:15px;color:var(--sub);background:#1f1812;
+    border-radius:8px;padding:8px 10px;margin:6px 0 10px;
+    font-family:"Consolas",monospace;line-height:1.5;
+    white-space:pre-wrap;
+  }
+  .shots{
+    display:flex;gap:10px;margin-top:auto;
+  }
+  .shots figure{
+    flex:1;margin:0;
+  }
+  .shots img{
+    width:100%;height:150px;object-fit:cover;border-radius:8px;
+    border:1px solid var(--line);display:block;
+  }
+  .shots figcaption{
+    font-size:13px;color:var(--sub);text-align:center;margin-top:4px;
+  }
+  .wide-shots{
+    display:flex;gap:16px;margin-top:16px;
+  }
+  .wide-shots figure{flex:1;margin:0;}
+  .wide-shots img{
+    width:100%;height:220px;object-fit:cover;border-radius:10px;border:1px solid var(--line);
+  }
+  .wide-shots figcaption{font-size:14px;color:var(--sub);text-align:center;margin-top:6px;}
+  .single-col{
+    flex:1;background:var(--panel);border-radius:14px;padding:26px 30px;overflow:auto;
+  }
+  .single-col h3{font-size:20px;margin:18px 0 8px;color:var(--b-accent);}
+  .single-col h3.a-h{color:var(--a-accent);}
+  .single-col p, .single-col li{font-size:18px;line-height:1.6;}
+  .code-box{
+    background:#1f1812;border-radius:8px;padding:12px 14px;
+    font-family:"Consolas",monospace;font-size:14px;color:var(--sub);
+    white-space:pre-wrap;line-height:1.5;margin:8px 0 14px;
+  }
+  .footer{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-top:18px;color:var(--sub);font-size:14px;
+  }
+  .dots{display:flex;gap:7px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--line);}
+  .dot.on{background:var(--ink);}
+  .hint{opacity:.7;}
+  .title-slide{
+    align-items:center;justify-content:center;text-align:center;gap:14px;
+  }
+  .title-slide h1{font-size:48px;}
+  .title-slide .subtitle{font-size:22px;}
+  .conclusion-list{
+    display:flex;flex-direction:column;gap:14px;flex:1;justify-content:center;
+  }
+  .conclusion-list .item{
+    background:var(--panel);border-radius:12px;padding:16px 20px;
+    border-left:5px solid var(--b-accent);font-size:19px;line-height:1.55;
+  }
+  .conclusion-list .item.warn{border-left-color:var(--a-accent);}
+  .conclusion-list .item b{color:var(--b-accent);}
+  .conclusion-list .item.warn b{color:var(--a-accent);}
+</style>
+</head>
+<body>
+<div class="deck" id="deck">
+
+  <!-- 1. 제목 -->
+  <section class="slide active title-slide">
+    <div class="eyebrow">Week 5 — A/B 프롬프트 구조화 실습 발표</div>
+    <h1>커피 배달 게임<br>프롬프트 구조화 A/B 비교</h1>
+    <p class="subtitle">같은 커피 배달 게임을, 구조화하지 않은 요청(A)과<br>구조화된 요청(B)으로 각각 수정해본 비교 실험</p>
+  </section>
+
+  <!-- 2. 실험 설계 -->
+  <section class="slide">
+    <div class="eyebrow">실험 설계</div>
+    <h2>A / B는 무엇이 다른가</h2>
+    <div class="columns">
+      <div class="col a">
+        <div class="col-title"><span class="tag a">A</span> 구조화 없음</div>
+        <ul>
+          <li>CLAUDE.md(system prompt) 없음</li>
+          <li>다른 대화창에서 자유롭게, 생각나는 대로 중국어로 요청</li>
+          <li>"무엇을 바꾸지 말아야 하는지"는 한 번도 명시하지 않음</li>
+        </ul>
+      </div>
+      <div class="col b">
+        <div class="col-title"><span class="tag b">B</span> 구조화함</div>
+        <ul>
+          <li>CLAUDE.md를 system prompt로 고정</li>
+          <li>매 요청마다 [현재 상황]/[목표]/[구체적 변경]/[유지할 것]/[완료 기준] 5단 구조</li>
+          <li>버그 수정은 [문제 재현]/[실제 결과]/[기대 결과]/[수정 범위] 형식 사용</li>
+        </ul>
+      </div>
+    </div>
+    <p class="subtitle" style="margin-top:14px;">※ A와 B 모두 같은 모델(Claude Sonnet 5)과 같은 언어(중국어)로 대화했고, B는 A가 만든 결과물을 이어받아 계속 개발했습니다.</p>
+  </section>
+
+  <!-- 3. 대비 1: 관 잔 수 -->
+  <section class="slide">
+    <div class="eyebrow">대비 1</div>
+    <h2>관(레벨)당 잔 수 — 세 번 고친 A, 한 번에 끝난 B</h2>
+    <div class="columns">
+      <div class="col a">
+        <div class="col-title"><span class="tag a">A</span> 세 번 수정, 그래도 오해</div>
+        <div class="quote">现在，重新设计关卡数，从现在的144杯改成88杯。</div>
+        <p>"144잔→88잔"으로 <b>잔 수를 줄이고 싶다</b>는 의도만 전달 → 적용 범위를 안 써서 AI가 "8관만 88잔, 7관은 89잔"이라는 이상한 규칙을 만듦.</p>
+        <div class="shots">
+          <figure><img src="screenshots/A_level1_start.png" alt="A 1관 시작"><figcaption>A: 1관 0/5</figcaption></figure>
+        </div>
+      </div>
+      <div class="col b">
+        <div class="col-title"><span class="tag b">B</span> 계산식 + 예시 숫자로 한 번에</div>
+        <div class="quote">관 = 이웃 수 × 라운드로 계산
+1~4관: 1라운드 / 5관부터: 2라운드
+예) 이웃 4명 → 1관은 4잔</div>
+        <p>계산 규칙과 구체적 예시 숫자를 함께 줘서 모호함 없이 한 번에 의도대로 구현됨.</p>
+        <div class="shots">
+          <figure><img src="screenshots/B_level1_start.png" alt="B 1관 시작"><figcaption>B: 1관 0/4</figcaption></figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4. 대비 2: 문제 보고 방식 -->
+  <section class="slide">
+    <div class="eyebrow">대비 2</div>
+    <h2>문제가 생겼을 때 어떻게 말하는가</h2>
+    <div class="columns">
+      <div class="col a">
+        <div class="col-title"><span class="tag a">A</span> 결과만, 설명 없이</div>
+        <div class="quote">失败的请、再次尝试
+(실패한 요청, 다시 시도)</div>
+        <p>무엇이 실패했는지, 어떤 결과를 원하는지 설명이 없음. "让我尝试一下"(내가 해볼게)도 새 지시로 오해되어 다시 정정해야 했음.</p>
+      </div>
+      <div class="col b">
+        <div class="col-title"><span class="tag b">B</span> 고정된 4단 형식</div>
+        <div class="quote">[문제 재현] 시작→커피 받기→배달
+[실제 결과] 말풍선은 나오나 하트 없음
+[기대 결과] 하트가 2~3초 나타났다 사라짐
+[수정 범위] 하트만 수정</div>
+        <p>AI가 그리기 순서 버그(하트가 배경에 가려짐)를 정확히 찾아내고, 원인도 설명받음.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. 대비 3: 확인 결과 -->
+  <section class="slide">
+    <div class="eyebrow">대비 3</div>
+    <h2>결과를 어떻게 확인하는가</h2>
+    <div class="columns">
+      <div class="col a">
+        <div class="col-title"><span class="tag a">A</span> 매번 직접 물어봐야 함</div>
+        <div class="quote">给我打开看看
+结束了吗?</div>
+        <p>AI가 스스로 완료 여부·확인 내용을 보고하지 않아, 사용자가 "열어봐", "끝났어?"를 반복해서 물어야 했음.</p>
+      </div>
+      <div class="col b">
+        <div class="col-title"><span class="tag b">B</span> system prompt가 보고 형식을 고정</div>
+        <div class="quote">CLAUDE.md 산출물 규칙:
+마지막에 [변경한 점 / 직접 확인한 것 /
+미확인] 세 가지로 짧게 정리한다.</div>
+        <p>채팅창에서 따로 요청하지 않아도, 매 요청마다 자동으로 변경/확인/미확인 형식 보고가 따라옴. (= 채팅 prompt가 아니라 system prompt의 효과)</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 6. B의 한계 -->
+  <section class="slide">
+    <div class="eyebrow">B의 한계</div>
+    <h2>구조화해도 남는 문제들</h2>
+    <div class="columns">
+      <div class="col a">
+        <div class="col-title">① 트레이 "×숫자"</div>
+        <p>사용자가 직접 "넘치면 옆에 ×숫자로 표시"라고 설계해서 지시 → 구현은 됐지만 실제로 보니 시스템 알림처럼 보여 <b>마음에 안 들었음</b>. 구조화는 요구사항 누락은 막지만, 아이디어 자체가 별로일 수 있다는 건 못 막음.</p>
+        <div class="shots">
+          <figure><img src="screenshots/B_tray_many.png" alt="B 트레이"><figcaption>B: 최종 트레이(×숫자 제거 후)</figcaption></figure>
+        </div>
+      </div>
+      <div class="col b">
+        <div class="col-title">② 충돌(통과 금지) 1차 누락</div>
+        <p>1차 prompt: "모두 막아달라"고만 쓰고 개체별 확인 방법은 안 씀 → 일부만 반영됨. 2차에서 "개체별 전수 목록 + 표로 보고"를 요구한 뒤에야 전부 수정됨.</p>
+        <div class="shots">
+          <figure><img src="screenshots/B_tree_blocked.png" alt="B 나무 충돌"><figcaption>B: 2차 수정 후, 나무에 막힘</figcaption></figure>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. 결론 -->
+  <section class="slide">
+    <div class="eyebrow">결론</div>
+    <h2>무엇이 도움이 됐고, 다음엔 무엇을 더 쓸까</h2>
+    <div class="conclusion-list">
+      <div class="item"><b>도움이 된 조건</b> — [유지할 것](불변 조건)을 매번 명시, 계산식·확률·숫자를 구체적 예시와 함께 전달, 버그는 [문제 재현/실제 결과/기대 결과/수정 범위] 형식, system prompt(CLAUDE.md)로 보고 형식을 고정.</div>
+      <div class="item warn"><b>아직 남은 문제</b> — "무엇을 넣을지"는 적어도 "어떻게 생겼는지"는 안 적으면 AI가 임의로 디자인함(장식 외관 등). "완료했다"는 보고 후에도 실제 플레이해보면 빠진 부분이 발견됨.</div>
+      <div class="item"><b>다음에 더 쓸 조건</b> — 기능뿐 아니라 스타일/수치/확률까지 구체화하기, "완료" 보고를 받은 뒤에도 직접 플레이해서 재확인하는 절차를 prompt에 포함시키기.</div>
+    </div>
+  </section>
+
+</div>
+
+<div style="position:fixed;bottom:18px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:16px;color:#c9b79f;font-family:'Malgun Gothic',sans-serif;">
+  <span id="pageNum" style="font-size:14px;"></span>
+  <div class="dots" id="dots"></div>
+  <span class="hint" style="font-size:13px;">← → 방향키로 이동</span>
+</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  const dotsWrap = document.getElementById('dots');
+  const pageNum = document.getElementById('pageNum');
+  let i = 0;
+
+  slides.forEach((_, idx) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (idx === 0 ? ' on' : '');
+    dotsWrap.appendChild(d);
+  });
+
+  function render(){
+    slides.forEach((s, idx) => s.classList.toggle('active', idx === i));
+    document.querySelectorAll('.dot').forEach((d, idx) => d.classList.toggle('on', idx === i));
+    pageNum.textContent = (i + 1) + ' / ' + slides.length;
+  }
+
+  function go(delta){
+    i = Math.max(0, Math.min(slides.length - 1, i + delta));
+    render();
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') { go(1); e.preventDefault(); }
+    if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(-1); e.preventDefault(); }
+    if (e.key === 'Home') { i = 0; render(); }
+    if (e.key === 'End') { i = slides.length - 1; render(); }
+  });
+
+  render();
+</script>
+</body>
+</html>
